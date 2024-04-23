@@ -1,0 +1,128 @@
+#!/bin/env python
+
+from __future__ import annotations
+
+import pathlib
+import argparse
+
+import logging
+import pretty_logger
+
+from dataclasses import dataclass, field
+import jinja2
+
+
+logger = pretty_logger.getLogger("vsim")
+
+
+def main():
+  parser = argparse.ArgumentParser(description='A tool for simulating using vivado simulator using F files')
+  parser.add_argument('filename', type=str, help='The root file to process')
+
+  args = parser.parse_args()
+
+  # Init Logging
+  chandler = logging.StreamHandler()
+  chandler.setFormatter(pretty_logger.ColoredFormatter("%(levelname)s - %(message)s"))
+  logging.basicConfig(
+    level=logging.INFO,
+    handlers=[chandler]
+  )
+
+  ctree = process_file(pathlib.Path(args.filename))
+
+  if not ctree.check():
+    logger.error("Error in compile tree")
+    return
+
+  with open("sim/vivado_sim.mk", "w") as f:
+    f.write(ctree.to_vivado_sim())
+
+
+@dataclass
+class CompileTree:
+  src_files: list[pathlib.Path] = field(default_factory=list)
+  include_dirs: list[pathlib.Path] = field(default_factory=list)
+  defines: list[str] = field(default_factory=list)
+  misc_directives: list[str] = field(default_factory=list)
+
+  def merge(self, other: CompileTree) -> None:
+    self.src_files.extend(other.src_files)
+    self.include_dirs.extend(other.include_dirs)
+    self.defines.extend(other.defines)
+    self.misc_directives.extend(other.misc_directives)
+
+  def check(self) -> bool:
+    return True
+
+  def to_vivado_sim(self) -> str:
+    jenv = jinja2.Environment(
+      loader=jinja2.FileSystemLoader(searchpath="proc"),
+      trim_blocks=True,
+      lstrip_blocks=True
+    )
+    template = jenv.get_template("vivado_sim.mk.jinja")
+    return template.render(ctree=self)
+
+
+def process_file(filename: pathlib.Path) -> CompileTree:
+  ctree = CompileTree()
+
+  with open(filename, 'r') as f:
+    for line in f:
+      line = line.strip()
+
+      # Skip empty lines and comments
+      if line == "":
+        continue
+      if line.startswith("#"):
+        continue
+
+      # Process a new file
+      if line.startswith("-f") or line.startswith("-F"):
+        next_file = evaluate_path(line[2:].strip(), filename.parent)
+        ctree.merge(process_file(next_file))
+
+      # Add include directories
+      elif line.startswith("+incdir+"):
+        idir = evaluate_path(line[8:], filename.parent)
+        logger.info(f"Adding include directory: {idir}")
+        ctree.include_dirs.append(idir)
+
+      # Add define
+      elif line.startswith("-define"):
+        logger.info(f"Adding define: {line[7:]}")
+        ctree.defines.append(line[7:].strip())
+
+      # Add misc directives
+      elif line.startswith("-") or line.startswith("+"):
+        logger.info(f"Misc directive: {line}")
+        ctree.misc_directives.append(line)
+
+      # Handle file names
+      elif line.endswith(".sv") or line.endswith(".v") or line.endswith(".vhdl") or line.endswith(".vhd"):
+        file = evaluate_path(line, filename.parent)
+        if line.endswith(".vhdl") or line.endswith(".vhd"):
+          logger.info(f"Adding VHDL file: {file}")
+        elif line.endswith(".v"):
+          logger.info(f"Adding Verilog file: {file}")
+        else:
+          logger.info(f"Adding SystemVerilog file: {file}")
+        ctree.src_files.append(file)
+
+      # Unkown issue
+      else:
+        logger.error(f"Unknown directive: {line}")
+
+  return ctree
+
+def evaluate_path(path: str, parent: pathlib.Path) -> pathlib.Path:
+  path = path.strip()
+
+  if path.startswith("/"):
+    return pathlib.Path(path).resolve()
+  else:
+    return parent.joinpath(path).resolve()
+
+if __name__ == "__main__":
+  main()

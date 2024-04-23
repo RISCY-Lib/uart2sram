@@ -1,0 +1,15 @@
+[submodule "testbench/utils/colored_reporter"]
+	path = testbench/utils/colored_reporter
+	url = https://github.com/RISCY-Lib/colored_reporter
+[submodule "testbench/utils/uvm_utils"]
+	path = testbench/utils/uvm_utils
+	url = https://github.com/RISCY-Lib/uvm_utils
+[submodule "testbench/agents/uart_agent"]
+	path = testbench/agents/uart_agent
+	url = https://github.com/RISCY-Lib/uart_agent
+[submodule "testbench/agents/clk_rst_agent"]
+	path = testbench/agents/clk_rst_agent
+	url = https://github.com/RISCY-Lib/clk_rst_agent
+[submodule "testbench/agents/sram_reactive_agent"]
+	path = testbench/agents/sram_reactive_agent
+	url = https://github.com/RISCY-Lib/sram_reactive_agent

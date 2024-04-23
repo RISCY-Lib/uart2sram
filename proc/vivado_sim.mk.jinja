@@ -1,0 +1,28 @@
+
+all: .xelab.test_top
+
+{% for d in ctree.defines %}
+DEFINES += --define {{d}}
+{% endfor %}
+
+{% for i in ctree.include_dirs %}
+INCLUDES += --include {{i}}
+{% endfor %}
+
+{% for m in ctree.misc_directives %}
+MISC += {{m}}
+{% endfor %}
+
+{% for f in ctree.src_files %}
+.analyze.{{f.name}} : {{f}}
+{% endfor %}
+
+.analyze.%.sv:
+	xvlog -sv $< $(DEFINES) $(INCLUDES) $(MISC)
+	@touch $@
+
+{% for f in ctree.src_files %}
+.xelab.test_top: .analyze.{{f.name}}
+{% endfor %}
+.xelab.test_top:
+	xelab test_top $(DEFINES) $(INCLUDES) $(MISC)

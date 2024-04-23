@@ -1,0 +1,3 @@
+-F uart_agent/uart_agent.f
+-F clk_rst_agent/clk_rst_agent.f
+-F sram_reactive_agent/sram_reactive_agent.f

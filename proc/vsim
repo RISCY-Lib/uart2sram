@@ -35,6 +35,9 @@ def main():
     logger.error("Error in compile tree")
     return
 
+  if not pathlib.Path("sim").exists():
+    pathlib.Path("sim").mkdir(parents=True, exist_ok=True)
+
   with open("sim/vivado_sim.mk", "w") as f:
     f.write(ctree.to_vivado_sim())
 
